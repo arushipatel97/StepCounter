@@ -52,8 +52,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private float nextMin = MAX_VALUE;
     private float nextMax = MIN_VALUE;
     private long nextChange = 500;
-
+    private int meanTimeThreshold = 500;
     private long lastUpdate = 0;
+    private int medianBack = 2;
+    private int samplingInterval = 50;
 
     @Override
     protected  void onCreate(Bundle savedInstanceState){
@@ -123,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             float z = event.values[2] - gravity[2];
 
             long curTime = System.currentTimeMillis();
-            if ((curTime - lastUpdate) >= 50) {
+            if ((curTime - lastUpdate) >= samplingInterval) {
                 if (accelerometerZ.size() > HISTORY_SIZE){
                     accelerometerZ.removeFirst();
                     threshold.removeFirst();
@@ -135,7 +137,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 threshold.addLast(null, avgThreshold);
 
                 //Median Filtering
-                int medianBack = 2;
                 if (accelerometerZ.size() < medianBack){
                     medianBack = accelerometerZ.size();
                 }
@@ -151,7 +152,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 median.addLast(null, zMed);
                 lastUpdate = curTime;
                 if (curTime >= nextChange) {
-                    nextChange = curTime + 500;
+                    nextChange = curTime + meanTimeThreshold;
                     max = nextMax;
                     min = nextMin;
                     nextMax = MIN_VALUE;
@@ -159,19 +160,20 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 }
 
                 //Mean calculation & thresholding
-                if (curTime > 500) { //remove gravity
+                if (curTime > meanTimeThreshold) {
                     avgThreshold = ((min + max) / 2);
                     if (abs(max-min) > 1.5) {
                         if (prevZ > avgThreshold && zMed <= avgThreshold) {
+                            //check for intersecting threshold
                             steps++;
                             tv_steps.setText(String.valueOf(steps));
                         }
                     }
                 }
-                if (zMed > nextMax) {
+                if (zMed > nextMax) { //update local max
                     nextMax = zMed;
                 }
-                if (zMed < nextMin) {
+                if (zMed < nextMin) { //update local min
                     nextMin = zMed;
                 }
                 prevZ = zMed;
